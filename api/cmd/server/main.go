@@ -7,7 +7,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/ChannMyaeAung/QuizApp/http"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/mux"
 )
@@ -27,6 +26,5 @@ func main(){
 	}
 
 	r := mux.NewRouter()
-	api := http.NewAPI(db)
 }
 

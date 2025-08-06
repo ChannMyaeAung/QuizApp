@@ -17,7 +17,7 @@ INSERT INTO quizzes(user_id) VALUES (?);
 SELECT id FROM cards ORDER BY RAND() LIMIT ?;
 
 -- name: AddQuizQuestion :exec 
-INSERT INTO quiz_questions(quiz_id, card_id, position) VALUES (?, ?, ?); ADD
+INSERT INTO quiz_questions(quiz_id, card_id, position) VALUES (?, ?, ?); 
 
 -- name: GetCorrectAnswer :one 
 SELECT correct_answer FROM cards WHERE id = ?;

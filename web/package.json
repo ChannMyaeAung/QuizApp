@@ -1,0 +1,14 @@
+{
+  "name": "quiz-web",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "next": "15.x",
+    "react": "19.x",
+    "react-dom": "19.x"
+  }
+}
