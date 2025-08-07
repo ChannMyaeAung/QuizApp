@@ -55,6 +55,15 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) error {
 	return err
 }
 
+const deleteCard = `-- name: DeleteCard :exec
+DELETE FROM cards WHERE id = ?
+`
+
+func (q *Queries) DeleteCard(ctx context.Context, id uint64) error {
+	_, err := q.db.ExecContext(ctx, deleteCard, id)
+	return err
+}
+
 const getCorrectAnswer = `-- name: GetCorrectAnswer :one
 SELECT correct_answer FROM cards WHERE id = ?
 `
@@ -225,13 +234,16 @@ func (q *Queries) SelectRandomCards(ctx context.Context, limit int32) ([]uint64,
 	return items, nil
 }
 
-const startQuiz = `-- name: StartQuiz :exec
+const startQuiz = `-- name: StartQuiz :execlastid
 INSERT INTO quizzes(user_id) VALUES (?)
 `
 
-func (q *Queries) StartQuiz(ctx context.Context, userID uint64) error {
-	_, err := q.db.ExecContext(ctx, startQuiz, userID)
-	return err
+func (q *Queries) StartQuiz(ctx context.Context, userID uint64) (int64, error) {
+	result, err := q.db.ExecContext(ctx, startQuiz, userID)
+	if err != nil {
+		return 0, err
+	}
+	return result.LastInsertId()
 }
 
 const updateScore = `-- name: UpdateScore :exec

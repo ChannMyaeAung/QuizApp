@@ -10,7 +10,7 @@ INSERT INTO cards(question, correct_answer, wrong_answers) VALUES (?, ?, ?);
 -- name: ListCards :many 
 SELECT id, question, correct_answer, wrong_answers FROM cards ORDER BY id DESC LIMIT 100; 
 
--- name: StartQuiz :exec 
+-- name: StartQuiz :execlastid
 INSERT INTO quizzes(user_id) VALUES (?);
 
 -- name: SelectRandomCards :many 
@@ -31,6 +31,9 @@ UPDATE quizzes SET score = score + 1 WHERE id = ?;
 -- name: GetQuiz :one 
 SELECT user_id, score, started_at, finished_at FROM
 quizzes WHERE id = ?;
+
+-- name: DeleteCard :exec
+DELETE FROM cards WHERE id = ?;
 
 -- name: ListQuizQuestions :many 
 SELECT card_id, position FROM quiz_questions WHERE quiz_id = ? ORDER BY position;

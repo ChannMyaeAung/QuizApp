@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"encoding/json"
 	"net/http"
+	"strconv"
+	"time"
 
 	"github.com/ChannMyaeAung/QuizApp/internal/auth"
 	"github.com/ChannMyaeAung/QuizApp/internal/db"
@@ -14,6 +16,7 @@ func RegisterRoutes(r *mux.Router, q *db.Queries){
 	r.HandleFunc("/login", login(q)).Methods("POST")
 	r.HandleFunc("/cards", createCard(q)).Methods("POST")
 	r.HandleFunc("/cards", listCards(q)).Methods("GET")
+    r.HandleFunc("/cards/{id}", deleteCard(q)).Methods("DELETE")
 	r.HandleFunc("/quizzes", startQuiz(q)).Methods("POST")
 	r.HandleFunc("/quizzes/{id}/answer", submitAnswer(q)).Methods("POST")
 	r.HandleFunc("/quizzes/{id}", getQuiz(q)).Methods("GET")
@@ -25,39 +28,39 @@ func writeJSON(w http.ResponseWriter, v interface{}){
 }
 
 func login(q *db.Queries) http.HandlerFunc{
-	type req struct{
-		Email string `json:"email"`
-		Password string `json:"password"`
-	}
+    type req struct{
+        Email string `json:"email"`
+        Password string `json:"password"`
+    }
 
-	type resp struct{
-		Token string `json:"token"`
-	}
+    type resp struct{
+        Token string `json:"token"`
+    }
 
-	return func(w http.ResponseWriter, r *http.Request){
-		var in req 
-		if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
-			http.Error(w, "invalid credentials", 401)
-			return
-		}
+    return func(w http.ResponseWriter, r *http.Request){
+        var in req 
+        if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+            http.Error(w, "invalid credentials", http.StatusUnauthorized)
+            return
+        }
 
-		user, err := q.GetUserByEmail(r.Context(), in.Email)
-		if err != sql.ErrNoRows {
-			http.Error(w, "invalid credentials", 401)
-			return 
-		}else if err != nil{
-			http.Error(w, err.Error(), 500)
-			return 
-		}
+        user, err := q.GetUserByEmail(r.Context(), in.Email)
+        if err == sql.ErrNoRows {  // CHANGED: != to ==
+            http.Error(w, "invalid credentials", http.StatusUnauthorized)
+            return
+        } else if err != nil {
+            http.Error(w, err.Error(), http.StatusInternalServerError)
+            return
+        }
 
-		// TODO: verify password hash here 
-		token, err := auth.Generate(user.ID)
-		if err != nil {
-			http.Error(w, err.Error(), 500)
-			return 
-		}
-		writeJSON(w, resp{Token: token})
-	}
+        // TODO: verify password hash here 
+        token, err := auth.Generate(user.ID)
+        if err != nil {
+            http.Error(w, err.Error(), 500)
+            return 
+        }
+        writeJSON(w, resp{Token: token})
+    }
 }
 
 func createCard(q *db.Queries) http.HandlerFunc{
@@ -81,7 +84,7 @@ func createCard(q *db.Queries) http.HandlerFunc{
         err := q.CreateCard(r.Context(), db.CreateCardParams{
             Question: ci.Question,
             CorrectAnswer: ci.CorrectAnswer,
-            WrongAnswers: wrongJSON,
+            WrongAnswers: json.RawMessage(wrongJSON),
         })
         if err != nil {
             http.Error(w, err.Error(), 500)
@@ -120,24 +123,178 @@ func listCards(q *db.Queries) http.HandlerFunc{
 }
 
 func startQuiz(q *db.Queries) http.HandlerFunc{
+    type in struct{
+        UserID int64 `json:"user_id"`
+        NumQuestions int32 `json:"num_questions"`
+    }
+    type out struct{
+        QuizID int64 `json:"quiz_id"`
+    }
+    return func(w http.ResponseWriter, r *http.Request){
+        var si in 
+        if err := json.NewDecoder(r.Body).Decode(&si); err != nil{
+            http.Error(w, err.Error(), 400)
+            return 
+        }
+
+        // Default to 10 questions if not specified
+        if si.NumQuestions == 0 {
+            si.NumQuestions = 10
+        }
+
+        // Start the quiz
+        quizID, err := q.StartQuiz(r.Context(), uint64(si.UserID))
+        if err != nil {
+            http.Error(w, err.Error(), 500)
+            return 
+        }
+
+        // Select random cards
+        cardIDs, err := q.SelectRandomCards(r.Context(), si.NumQuestions)
+        if err != nil {
+            http.Error(w, err.Error(), http.StatusInternalServerError)
+            return
+        }
+
+        // Add quiz questions
+        for i, cardID := range cardIDs {
+            err = q.AddQuizQuestion(r.Context(), db.AddQuizQuestionParams{
+                QuizID:   uint64(quizID),
+                CardID:   cardID,
+                Position: int32(i + 1),
+            })
+            if err != nil {
+                http.Error(w, err.Error(), 500)
+                return 
+            }
+        }
+
+        writeJSON(w, out{QuizID: quizID})
+    }
+}
+
+func deleteCard(q *db.Queries) http.HandlerFunc{
+    return func(w http.ResponseWriter, r *http.Request){
+        vars := mux.Vars(r)
+        cardIDStr := vars["id"]
+        cardID, err := strconv.ParseInt(cardIDStr, 10, 64)
+        if err != nil {
+            http.Error(w, "invalid card ID", http.StatusBadRequest)
+            return 
+        }
+
+        err = q.DeleteCard(r.Context(), uint64(cardID))
+        if err != nil {
+            http.Error(w, err.Error(), http.StatusInternalServerError)
+            return 
+        }
+
+        writeJSON(w, map[string]string{"message": "Card deleted successfully"})
+    }
+}
+
+
+func submitAnswer(q *db.Queries) http.HandlerFunc{
 	type in struct{
-		UserID int64 `json:"user_id"`
-		NumQuestions int32 `json:"num_questions"`
+		CardID int64 `json:"card_id"`
+		AnswerText string `json:"answer_text"`
 	}
 	type out struct{
-		QuizID int64 `json:"quiz_id"`
+		Correct bool `json:"correct"`
 	}
+
 	return func(w http.ResponseWriter, r *http.Request){
-		var si in 
-		if err := json.NewDecoder(r.Body).Decode(&si); err != nil{
+		quizID, err := strconv.ParseInt(mux.Vars(r)["id"], 10, 64)
+		if err != nil {
+			http.Error(w, "invalid quiz id", 400)
+			return 
+		}
+
+		var ai in 
+		if err := json.NewDecoder(r.Body).Decode(&ai); err != nil {
 			http.Error(w, err.Error(), 400)
 			return 
 		}
-		tx, err := q.DB().BeginTx(r.Context(), nil)
+
+		// fetch correct answer 
+		ca, err := q.GetCorrectAnswer(r.Context(), uint64(ai.CardID))
 		if err != nil {
 			http.Error(w, err.Error(), 500)
 			return 
 		}
-		defer tx.Rollback()
+
+		isCorrect := ai.AnswerText == ca 
+
+		// Record the answer
+        err = q.RecordAnswer(r.Context(), db.RecordAnswerParams{
+            QuizID: uint64(quizID),
+            CardID: uint64(ai.CardID),
+            AnswerText: ai.AnswerText,
+            IsCorrect: isCorrect,
+        })
+		if err != nil {
+			http.Error(w, err.Error(), 500)
+			return 
+		}
+
+		// Update score if correct 
+		if isCorrect{
+			err = q.UpdateScore(r.Context(), uint64(quizID))
+			if err != nil {
+				http.Error(w, err.Error(), 500)
+				return
+			}
+		}
+		writeJSON(w, out{Correct: isCorrect})
+	}
+}
+
+func getQuiz(q *db.Queries) http.HandlerFunc{
+	type out struct{
+		UserID uint64 `json:"user_id"`
+		Score int32 `json:"score"`
+		StartedAt string `json:"started_at"`
+        FinishedAt *string `json:"finished_at,omitempty"`
+		Questions []db.ListQuizQuestionsRow `json:"questions"`
+	}
+
+	return func(w http.ResponseWriter, r *http.Request){
+		quizID, err := strconv.ParseInt(mux.Vars(r)["id"], 10, 64)
+		if err != nil {
+			http.Error(w, "invalid quiz id", 400)
+			return 
+		}
+
+		qz, err := q.GetQuiz(r.Context(), uint64(quizID))
+		if err != nil{
+			http.Error(w, "quiz not found", 404)
+			return 
+		}
+
+		questions, err := q.ListQuizQuestions(r.Context(), uint64(quizID))
+		if err != nil {
+            http.Error(w, err.Error(), 500)
+            return 
+        }
+
+        resp := out{
+            UserID: qz.UserID,
+            Score: func() int32 {
+                if qz.Score.Valid {
+                    return qz.Score.Int32
+                }
+                return 0
+            }(),
+            StartedAt: qz.StartedAt.Time.Format(time.RFC3339),
+            FinishedAt: func() *string{
+                if qz.FinishedAt.Valid{
+                    s := qz.FinishedAt.Time.Format(time.RFC3339)
+                    return &s 
+                }
+                return nil 
+            }(),
+            Questions: questions, 
+        }
+        writeJSON(w, resp)
 	}
 }
