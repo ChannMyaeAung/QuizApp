@@ -2,10 +2,10 @@ services:
   db:
     image: mysql:8.0
     environment:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: quiz
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
     ports:
-      - "3307:3306"
+      - "${DB_PORT}:3306"
     volumes:
       - db_data:/var/lib/mysql
       - ./migrations:/docker-entrypoint-initdb.d
@@ -22,24 +22,24 @@ services:
     depends_on:
       - db
     ports:
-      - "8081:8080"
+      - "8081:${API_PORT}"
     networks:
       - quiz-net
     restart: on-failure
 
-  web:
-    build:
-      context: ./web
-      dockerfile: Dockerfile
-    environment:
-      # Inside the web container, the api service is reachable at http://api:8080
-      NEXT_PUBLIC_API_URL: "http://api:8080"
-    depends_on:
-      - api
-    ports:
-      - "3000:3000"
-    networks:
-      - quiz-net
+  # web:
+  #   build:
+  #     context: ./web
+  #     dockerfile: Dockerfile
+  #   environment:
+  #     # Inside the web container, the api service is reachable at http://api:8080
+  #     NEXT_PUBLIC_API_URL: "http://api:${API_PORT}"
+  #   depends_on:
+  #     - api
+  #   ports:
+  #     - "${WEB_PORT}:3000"
+  #   networks:
+  #     - quiz-net
 
 volumes:
   db_data:

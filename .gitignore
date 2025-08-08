@@ -1,0 +1,40 @@
+# Environment variables
+.env 
+.env.local
+.env.development 
+.env.production 
+
+# Database 
+*.db 
+*.sqlite 
+*.sql.backup 
+
+# Logs
+*.log 
+logs/ 
+
+# Docker 
+.dockerignore
+
+# IDE
+.vscode/ 
+.idea/ 
+*.swp 
+*.swo 
+
+# OS 
+.DS_Store 
+Thumbs.db 
+
+# Dependencies 
+node_modules/ 
+vendor/ 
+
+# Build outputs 
+dist/
+build/ 
+*.exe 
+
+# Database data (if using local volumes)
+data/ 
+mysql_data/ 

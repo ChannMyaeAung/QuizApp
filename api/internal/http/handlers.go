@@ -45,7 +45,7 @@ func login(q *db.Queries) http.HandlerFunc{
         }
 
         user, err := q.GetUserByEmail(r.Context(), in.Email)
-        if err == sql.ErrNoRows {  // CHANGED: != to ==
+        if err == sql.ErrNoRows {  
             http.Error(w, "invalid credentials", http.StatusUnauthorized)
             return
         } else if err != nil {
