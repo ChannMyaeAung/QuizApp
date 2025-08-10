@@ -18,16 +18,23 @@ export default function CardsPage() {
   const [wrong, setWrong] = useState("");
 
   const load = async () => {
-    const res = await fetch(`${API_URL}/cards`);
-    if (res.ok) {
-      const data = await res.json();
-      const parsed: Card[] = data.map((c: any) => ({
-        id: c.id,
-        question: c.question,
-        correct_answer: c.correct_answer,
-        wrong_answers: JSON.parse(c.wrong_answers),
-      }));
-      setCards(parsed);
+    try {
+      const res = await fetch(`${API_URL}/cards`);
+      if (res.ok) {
+        const data = await res.json();
+        const parsed: Card[] = data.map((c: any) => ({
+          id: c.id,
+          question: c.question,
+          correct_answer: c.correct_answer,
+          wrong_answers:
+            typeof c.wrong_answers === "string"
+              ? JSON.parse(c.wrong_answers)
+              : c.wrong_answers,
+        }));
+        setCards(parsed);
+      }
+    } catch (error) {
+      console.error("Failed to load cards:", error);
     }
   };
 
@@ -37,30 +44,43 @@ export default function CardsPage() {
 
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
-    const wrongAnswers = wrong
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
-    await fetch(`${API_URL}/cards`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        question,
-        correct_answer: correct,
-        wrong_answers: wrongAnswers,
-      }),
-    });
-    setQuestion("");
-    setCorrect("");
-    setWrong("");
-    load();
+    try {
+      const wrongAnswers = wrong
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      const res = await fetch(`${API_URL}/cards`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          question,
+          correct_answer: correct,
+          wrong_answers: wrongAnswers,
+        }),
+      });
+
+      if (res.ok) {
+        setQuestion("");
+        setCorrect("");
+        setWrong("");
+        load();
+      }
+    } catch (error) {
+      console.error("Failed to create card:", error);
+    }
   };
 
   const del = async (id: number) => {
-    await fetch(`${API_URL}/cards/${id}`, {
-      method: "DELETE",
-    });
-    load();
+    try {
+      const res = await fetch(`${API_URL}/cards/${id}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        load();
+      }
+    } catch (error) {
+      console.error("Failed to delete card:", error);
+    }
   };
 
   return (
@@ -71,16 +91,19 @@ export default function CardsPage() {
           value={question}
           placeholder="Question"
           onChange={(e) => setQuestion(e.target.value)}
+          required
         />
         <input
           value={correct}
           placeholder="Correct Answer"
           onChange={(e) => setCorrect(e.target.value)}
+          required
         />
         <input
           value={wrong}
           placeholder="Wrong Answers (comma separated)"
           onChange={(e) => setWrong(e.target.value)}
+          required
         />
         <button type="submit">Create</button>
       </form>

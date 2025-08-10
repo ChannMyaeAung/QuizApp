@@ -12,14 +12,35 @@ import (
 	"github.com/gorilla/mux"
 )
 
+// Add CORS middleware
+func corsMiddleware(next http.Handler) http.Handler {
+    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        w.Header().Set("Access-Control-Allow-Origin", "*")
+        w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+        w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+        
+        // Handle preflight requests
+        if r.Method == "OPTIONS" {
+            w.WriteHeader(http.StatusOK)
+            return
+        }
+        
+        next.ServeHTTP(w, r)
+    })
+}
+
 func RegisterRoutes(r *mux.Router, q *db.Queries){
-	r.HandleFunc("/login", login(q)).Methods("POST")
-	r.HandleFunc("/cards", createCard(q)).Methods("POST")
-	r.HandleFunc("/cards", listCards(q)).Methods("GET")
-    r.HandleFunc("/cards/{id}", deleteCard(q)).Methods("DELETE")
-	r.HandleFunc("/quizzes", startQuiz(q)).Methods("POST")
-	r.HandleFunc("/quizzes/{id}/answer", submitAnswer(q)).Methods("POST")
-	r.HandleFunc("/quizzes/{id}", getQuiz(q)).Methods("GET")
+    // Apply CORS middleware to all routes
+    r.Use(corsMiddleware)
+
+
+	r.HandleFunc("/login", login(q)).Methods("POST", "OPTIONS")
+    r.HandleFunc("/cards", createCard(q)).Methods("POST", "OPTIONS")
+    r.HandleFunc("/cards", listCards(q)).Methods("GET", "OPTIONS")
+    r.HandleFunc("/cards/{id}", deleteCard(q)).Methods("DELETE", "OPTIONS")
+    r.HandleFunc("/quizzes", startQuiz(q)).Methods("POST", "OPTIONS")
+    r.HandleFunc("/quizzes/{id}/answer", submitAnswer(q)).Methods("POST", "OPTIONS")
+    r.HandleFunc("/quizzes/{id}", getQuiz(q)).Methods("GET", "OPTIONS")
 }
 
 func writeJSON(w http.ResponseWriter, v interface{}){

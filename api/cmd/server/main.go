@@ -1,5 +1,7 @@
 package main
 
+// _ to register the driver without direct use
+// Gorilla Mux for routing
 import (
 	"context"
 	"database/sql"
