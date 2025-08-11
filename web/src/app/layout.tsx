@@ -23,11 +23,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen bg-background font-sans dark`}
       >
-        {children}
+        <main className="relative flex flex-col min-h-screen">
+          <div className="flex-1">{children}</div>
+        </main>
       </body>
     </html>
   );

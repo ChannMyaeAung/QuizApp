@@ -17,6 +17,7 @@ import (
 )
 
 func main(){
+	// Connect to the database
 	dsn := os.Getenv("DB_DSN")
 	if dsn == ""{
 		log.Fatal("DB_DSN environment variable is required")
@@ -50,25 +51,9 @@ func main(){
 	// Create queries instance
 	queries := db.New(database)
 
-	// Setup router
+	// Setup router & Pass queries to our API handlers so they can use it
 	r := mux.NewRouter()
 	httphandlers.RegisterRoutes(r, queries)
-
-	// Add CORS middleware
-	r.Use(func(next http.Handler) http.Handler{
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request){
-			w.Header().Set("Access-Control-Allow-Origin", "*")
-			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-
-			if r.Method == "OPTIONS"{
-				w.WriteHeader(http.StatusOK)
-				return 
-			}
-
-			next.ServeHTTP(w, r)
-		})
-	})
 
 	port := os.Getenv("PORT")
 	if port == ""{
