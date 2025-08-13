@@ -14,7 +14,7 @@ COPY . .
 RUN go build -o server ./cmd/server
 
 # --------------------------------------------------------------------------------
-# (Optional) If you want a slimmer runtime, do a second stage:
+# (Optional) If we want a slimmer runtime, do a second stage:
 FROM alpine:latest
 WORKDIR /app
 COPY --from=builder /app/server ./

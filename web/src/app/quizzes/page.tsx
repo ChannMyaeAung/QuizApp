@@ -22,8 +22,7 @@ import {
   Clock,
 } from "lucide-react";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8081";
-
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 interface QuizQuestion {
   card_id: number;
   position: number;

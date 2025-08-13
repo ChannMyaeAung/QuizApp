@@ -1,0 +1,13 @@
+[build]
+builder = "dockerfile"
+dockerfilePath = "api/Dockerfile"
+
+[deploy]
+healthcheckPath = "/cards"
+healthcheckTimeout = 300 
+restartPolicyType = "on_failure"
+startCommand = "./server"
+
+[[services]]
+name = "api"
+source = "."

@@ -16,7 +16,7 @@ import { Separator } from "@/components/ui/separator";
 import { Trash2, Plus, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8081";
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 interface Card {
   id: number;
