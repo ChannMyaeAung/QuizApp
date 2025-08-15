@@ -1,6 +1,6 @@
 # QuizApp
 
-A Quizz App to practice/hone what I have learnt so far in Go and MySQL.
+A Quizz App to practice/hone what I have learnt so far in Go and MySQL. The Backend API was deployed on Railway on free tier so it might take a bit while to fetch the data.
 
 **Testing the API in Postman (GET):**
 
@@ -21,4 +21,4 @@ npm install
 npm run dev
 ```
 
-Set `NEXT_PUBLIC_API_URL` to point at the running API service (defaults to `http://localhost:8080`).
+For Running locally using Docker: Set `NEXT_PUBLIC_API_URL` to point at the running API service (defaults to `http://localhost:8080`).
