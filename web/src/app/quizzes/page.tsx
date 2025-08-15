@@ -66,6 +66,22 @@ export default function QuizzesPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [startTime, setStartTime] = useState<Date | null>(null);
+  const [elapsedTime, setElapsedTime] = useState(0);
+
+  // To Manage the Quiz Timer
+  useEffect(() => {
+    if (!startTime || quizComplete) {
+      return; // don't start the timer if the quiz hasn't started or is complete
+    }
+
+    // Set up an interval to update the elapsed time every second
+    const timerInterval = setInterval(() => {
+      setElapsedTime(Math.floor((Date.now() - startTime.getTime()) / 1000));
+    }, 1000);
+
+    // Clean up the interval when the component unmounts or the quiz ends
+    return () => clearInterval(timerInterval);
+  }, [startTime, quizComplete]);
 
   // Get user ID from token
   const getUserId = (): number => {
@@ -235,16 +251,14 @@ export default function QuizzesPage() {
   // Calculate time taken
   const getTimeTaken = () => {
     if (!startTime) return "0:00";
-    const seconds = Math.floor((Date.now() - startTime.getTime()) / 1000);
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
+    const minutes = Math.floor(elapsedTime / 60);
+    const remainingSeconds = elapsedTime % 60;
     return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
   };
 
   const progress = quizData
     ? ((currentQuestionIndex + 1) / quizData.questions.length) * 100
     : 0;
-  const answerOptions = shuffledOptions;
   const { correct, total } = getFinalScore();
 
   return (
@@ -282,7 +296,7 @@ export default function QuizzesPage() {
               <span>Ready for a Challenge?</span>
             </CardTitle>
             <CardDescription>
-              Test your knowledge with 10 random questions. Good luck!
+              Test your knowledge with random questions. Good luck!
             </CardDescription>
           </CardHeader>
           <CardContent className="text-center">
@@ -390,102 +404,100 @@ export default function QuizzesPage() {
             </CardContent>
           </Card>
           {/* Current Question */}
+
           {currentCard && shuffledOptions.length > 0 ? (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-xl">
-                  {currentCard.question}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Answer Options - USE shuffledOptions instead of answerOptions */}
-                <div className="space-y-2">
-                  {shuffledOptions.map((option, index) => (
+            <>
+              <Card className="mt-4">
+                <CardHeader>
+                  <CardTitle className="text-xl">
+                    {currentCard.question}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    {shuffledOptions.map((option, index) => (
+                      <Button
+                        key={index}
+                        variant={
+                          selectedAnswer === option ? "default" : "outline"
+                        }
+                        className="justify-start w-full h-auto p-4 text-left"
+                        onClick={() => !showResult && setSelectedAnswer(option)}
+                        disabled={showResult || loading}
+                      >
+                        <span className="mr-3 font-mono">
+                          {String.fromCharCode(65 + index)}.
+                        </span>
+                        {option}
+                      </Button>
+                    ))}
+                  </div>
+
+                  {/* Submit Button */}
+                  {!showResult && (
                     <Button
-                      key={index}
-                      variant={
-                        selectedAnswer === option ? "default" : "outline"
-                      }
-                      className="justify-start w-full h-auto p-4 text-left"
-                      onClick={() => !showResult && setSelectedAnswer(option)}
-                      disabled={showResult || loading}
+                      onClick={submitAnswer}
+                      disabled={!selectedAnswer || loading}
+                      className="w-full"
                     >
-                      <span className="mr-3 font-mono">
-                        {String.fromCharCode(65 + index)}.
-                      </span>
-                      {option}
+                      {loading ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Submitting...
+                        </>
+                      ) : (
+                        "Submit Answer"
+                      )}
                     </Button>
-                  ))}
-                </div>
-
-                {/* Submit Button */}
-                {!showResult && (
-                  <Button
-                    onClick={submitAnswer}
-                    disabled={!selectedAnswer || loading}
-                    className="w-full"
-                  >
-                    {loading ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Submitting...
-                      </>
+                  )}
+                </CardContent>
+              </Card>
+              {/* Answer Result */}
+              {showResult && answers.length > 0 && (
+                <Alert
+                  variant={
+                    answers[answers.length - 1].is_correct
+                      ? "default"
+                      : "destructive"
+                  }
+                  className="!w-full !h-[100px] mt-4 border-l-4"
+                >
+                  <div className="absolute flex items-start flex-1 w-full top-1 left-1">
+                    {answers[answers.length - 1].is_correct ? (
+                      <CheckCircle className="right-0 w-4 h-4 text-green-600" />
                     ) : (
-                      "Submit Answer"
+                      <XCircle className="w-4 h-4 text-red-600" />
                     )}
-                  </Button>
-                )}
+                  </div>
 
-                {/* Answer Result */}
-                {showResult && answers.length > 0 && (
-                  <Alert
-                    variant={
-                      answers[answers.length - 1].is_correct
-                        ? "default"
-                        : "destructive"
-                    }
-                    className="border-l-4"
-                  >
-                    <div className="flex items-start space-x-3">
-                      <div className="flex-shrink-0 mt-0.5">
-                        {answers[answers.length - 1].is_correct ? (
-                          <CheckCircle className="w-5 h-5 text-green-600" />
-                        ) : (
-                          <XCircle className="w-5 h-5 text-red-600" />
-                        )}
-                      </div>
-                      <div className="flex-1">
-                        <div className="mb-1 font-medium">
-                          {answers[answers.length - 1].is_correct
-                            ? "Correct Answer! 🎉"
-                            : "Incorrect Answer"}
-                        </div>
-                        <AlertDescription className="text-sm">
-                          {answers[answers.length - 1].is_correct ? (
-                            "Well done! You got it right."
-                          ) : (
-                            <div className="space-y-1">
-                              <div>
-                                Your answer:{" "}
-                                <span className="font-medium text-red-600">
-                                  {selectedAnswer}
-                                </span>
-                              </div>
-                              <div>
-                                Correct answer:{" "}
-                                <span className="font-medium text-green-600">
-                                  {answers[answers.length - 1].correct_answer}
-                                </span>
-                              </div>
-                            </div>
-                          )}
-                        </AlertDescription>
-                      </div>
+                  <div className="absolute w-full top-1 left-8">
+                    <div className="mb-1 font-medium">
+                      {answers[answers.length - 1].is_correct
+                        ? "Correct Answer! 🎉"
+                        : "Incorrect Answer"}
                     </div>
-                  </Alert>
-                )}
-              </CardContent>
-            </Card>
+
+                    <AlertDescription className="w-full text-sm">
+                      {answers[answers.length - 1].is_correct ? (
+                        "Well done! You got it right."
+                      ) : (
+                        <div className="space-y-1">
+                          Your answer: {""}
+                          <span className="font-medium text-red-600">
+                            {selectedAnswer}
+                          </span>
+                          <br />
+                          Correct answer:{" "}
+                          <span className="font-medium text-green-600">
+                            {answers[answers.length - 1].correct_answer}
+                          </span>
+                        </div>
+                      )}
+                    </AlertDescription>
+                  </div>
+                </Alert>
+              )}
+            </>
           ) : (
             // Loading question
             <Card>

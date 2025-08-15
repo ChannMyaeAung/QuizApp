@@ -17,8 +17,8 @@ services:
       context: ./api
       dockerfile: Dockerfile
     environment:
-      DB_DSN: "root:root@tcp(db:3306)/quiz?parseTime=true&multiStatements=true"
-      JWT_SECRET: "devsecret"
+      DB_DSN: "${DB_USER}:${DB_PASSWORD}@tcp(db:3306)/quiz?parseTime=true&multiStatements=true"
+      JWT_SECRET: ${JWT_SECRET}
     depends_on:
       - db
     ports:
@@ -26,20 +26,6 @@ services:
     networks:
       - quiz-net
     restart: on-failure
-
-  # web:
-  #   build:
-  #     context: ./web
-  #     dockerfile: Dockerfile
-  #   environment:
-  #     # Inside the web container, the api service is reachable at http://api:8080
-  #     NEXT_PUBLIC_API_URL: "http://api:${API_PORT}"
-  #   depends_on:
-  #     - api
-  #   ports:
-  #     - "${WEB_PORT}:3000"
-  #   networks:
-  #     - quiz-net
 
 volumes:
   db_data:
