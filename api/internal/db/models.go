@@ -10,7 +10,7 @@ import (
 )
 
 type Card struct {
-	ID            uint64          `json:"id"`
+	ID            int64           `json:"id"`
 	Question      string          `json:"question"`
 	CorrectAnswer string          `json:"correct_answer"`
 	WrongAnswers  json.RawMessage `json:"wrong_answers"`
@@ -18,31 +18,31 @@ type Card struct {
 }
 
 type Quiz struct {
-	ID         uint64        `json:"id"`
-	UserID     uint64        `json:"user_id"`
+	ID         int64         `json:"id"`
+	UserID     int64         `json:"user_id"`
 	StartedAt  sql.NullTime  `json:"started_at"`
 	FinishedAt sql.NullTime  `json:"finished_at"`
 	Score      sql.NullInt32 `json:"score"`
 }
 
 type QuizAnswer struct {
-	ID         uint64       `json:"id"`
-	QuizID     uint64       `json:"quiz_id"`
-	CardID     uint64       `json:"card_id"`
+	ID         int64        `json:"id"`
+	QuizID     int64        `json:"quiz_id"`
+	CardID     int64        `json:"card_id"`
 	AnswerText string       `json:"answer_text"`
 	IsCorrect  bool         `json:"is_correct"`
 	AnsweredAt sql.NullTime `json:"answered_at"`
 }
 
 type QuizQuestion struct {
-	ID       uint64 `json:"id"`
-	QuizID   uint64 `json:"quiz_id"`
-	CardID   uint64 `json:"card_id"`
-	Position int32  `json:"position"`
+	ID       int64 `json:"id"`
+	QuizID   int64 `json:"quiz_id"`
+	CardID   int64 `json:"card_id"`
+	Position int32 `json:"position"`
 }
 
 type User struct {
-	ID           uint64       `json:"id"`
+	ID           int64        `json:"id"`
 	Email        string       `json:"email"`
 	PasswordHash []byte       `json:"password_hash"`
 	CreatedAt    sql.NullTime `json:"created_at"`

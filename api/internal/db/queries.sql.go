@@ -12,13 +12,13 @@ import (
 )
 
 const addQuizQuestion = `-- name: AddQuizQuestion :exec
-INSERT INTO quiz_questions(quiz_id, card_id, position) VALUES (?, ?, ?)
+INSERT INTO quiz_questions(quiz_id, card_id, position) VALUES ($1, $2, $3)
 `
 
 type AddQuizQuestionParams struct {
-	QuizID   uint64 `json:"quiz_id"`
-	CardID   uint64 `json:"card_id"`
-	Position int32  `json:"position"`
+	QuizID   int64 `json:"quiz_id"`
+	CardID   int64 `json:"card_id"`
+	Position int32 `json:"position"`
 }
 
 func (q *Queries) AddQuizQuestion(ctx context.Context, arg AddQuizQuestionParams) error {
@@ -27,7 +27,7 @@ func (q *Queries) AddQuizQuestion(ctx context.Context, arg AddQuizQuestionParams
 }
 
 const createCard = `-- name: CreateCard :exec
-INSERT INTO cards(question, correct_answer, wrong_answers) VALUES (?, ?, ?)
+INSERT INTO cards(question, correct_answer, wrong_answers) VALUES ($1, $2, $3)
 `
 
 type CreateCardParams struct {
@@ -42,7 +42,7 @@ func (q *Queries) CreateCard(ctx context.Context, arg CreateCardParams) error {
 }
 
 const createUser = `-- name: CreateUser :exec
-INSERT INTO users(email, password_hash) VALUES (?, ?)
+INSERT INTO users(email, password_hash) VALUES ($1, $2)
 `
 
 type CreateUserParams struct {
@@ -56,19 +56,19 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) error {
 }
 
 const deleteCard = `-- name: DeleteCard :exec
-DELETE FROM cards WHERE id = ?
+DELETE FROM cards WHERE id = $1
 `
 
-func (q *Queries) DeleteCard(ctx context.Context, id uint64) error {
+func (q *Queries) DeleteCard(ctx context.Context, id int64) error {
 	_, err := q.db.ExecContext(ctx, deleteCard, id)
 	return err
 }
 
 const getCorrectAnswer = `-- name: GetCorrectAnswer :one
-SELECT correct_answer FROM cards WHERE id = ?
+SELECT correct_answer FROM cards WHERE id = $1
 `
 
-func (q *Queries) GetCorrectAnswer(ctx context.Context, id uint64) (string, error) {
+func (q *Queries) GetCorrectAnswer(ctx context.Context, id int64) (string, error) {
 	row := q.db.QueryRowContext(ctx, getCorrectAnswer, id)
 	var correct_answer string
 	err := row.Scan(&correct_answer)
@@ -76,18 +76,17 @@ func (q *Queries) GetCorrectAnswer(ctx context.Context, id uint64) (string, erro
 }
 
 const getQuiz = `-- name: GetQuiz :one
-SELECT user_id, score, started_at, finished_at FROM
-quizzes WHERE id = ?
+SELECT user_id, score, started_at, finished_at FROM quizzes WHERE id = $1
 `
 
 type GetQuizRow struct {
-	UserID     uint64        `json:"user_id"`
+	UserID     int64         `json:"user_id"`
 	Score      sql.NullInt32 `json:"score"`
 	StartedAt  sql.NullTime  `json:"started_at"`
 	FinishedAt sql.NullTime  `json:"finished_at"`
 }
 
-func (q *Queries) GetQuiz(ctx context.Context, id uint64) (GetQuizRow, error) {
+func (q *Queries) GetQuiz(ctx context.Context, id int64) (GetQuizRow, error) {
 	row := q.db.QueryRowContext(ctx, getQuiz, id)
 	var i GetQuizRow
 	err := row.Scan(
@@ -100,11 +99,11 @@ func (q *Queries) GetQuiz(ctx context.Context, id uint64) (GetQuizRow, error) {
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, password_hash FROM users WHERE email = ?
+SELECT id, password_hash FROM users WHERE email = $1
 `
 
 type GetUserByEmailRow struct {
-	ID           uint64 `json:"id"`
+	ID           int64  `json:"id"`
 	PasswordHash []byte `json:"password_hash"`
 }
 
@@ -120,7 +119,7 @@ SELECT id, question, correct_answer, wrong_answers FROM cards ORDER BY id DESC L
 `
 
 type ListCardsRow struct {
-	ID            uint64          `json:"id"`
+	ID            int64           `json:"id"`
 	Question      string          `json:"question"`
 	CorrectAnswer string          `json:"correct_answer"`
 	WrongAnswers  json.RawMessage `json:"wrong_answers"`
@@ -155,15 +154,15 @@ func (q *Queries) ListCards(ctx context.Context) ([]ListCardsRow, error) {
 }
 
 const listQuizQuestions = `-- name: ListQuizQuestions :many
-SELECT card_id, position FROM quiz_questions WHERE quiz_id = ? ORDER BY position
+SELECT card_id, position FROM quiz_questions WHERE quiz_id = $1 ORDER BY position
 `
 
 type ListQuizQuestionsRow struct {
-	CardID   uint64 `json:"card_id"`
-	Position int32  `json:"position"`
+	CardID   int64 `json:"card_id"`
+	Position int32 `json:"position"`
 }
 
-func (q *Queries) ListQuizQuestions(ctx context.Context, quizID uint64) ([]ListQuizQuestionsRow, error) {
+func (q *Queries) ListQuizQuestions(ctx context.Context, quizID int64) ([]ListQuizQuestionsRow, error) {
 	rows, err := q.db.QueryContext(ctx, listQuizQuestions, quizID)
 	if err != nil {
 		return nil, err
@@ -187,12 +186,12 @@ func (q *Queries) ListQuizQuestions(ctx context.Context, quizID uint64) ([]ListQ
 }
 
 const recordAnswer = `-- name: RecordAnswer :exec
-INSERT INTO quiz_answers(quiz_id, card_id, answer_text, is_correct) VALUES (?, ?, ?, ?)
+INSERT INTO quiz_answers(quiz_id, card_id, answer_text, is_correct) VALUES ($1, $2, $3, $4)
 `
 
 type RecordAnswerParams struct {
-	QuizID     uint64 `json:"quiz_id"`
-	CardID     uint64 `json:"card_id"`
+	QuizID     int64  `json:"quiz_id"`
+	CardID     int64  `json:"card_id"`
 	AnswerText string `json:"answer_text"`
 	IsCorrect  bool   `json:"is_correct"`
 }
@@ -208,18 +207,18 @@ func (q *Queries) RecordAnswer(ctx context.Context, arg RecordAnswerParams) erro
 }
 
 const selectRandomCards = `-- name: SelectRandomCards :many
-SELECT id FROM cards ORDER BY RAND() LIMIT ?
+SELECT id FROM cards ORDER BY RANDOM() LIMIT $1
 `
 
-func (q *Queries) SelectRandomCards(ctx context.Context, limit int32) ([]uint64, error) {
+func (q *Queries) SelectRandomCards(ctx context.Context, limit int32) ([]int64, error) {
 	rows, err := q.db.QueryContext(ctx, selectRandomCards, limit)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []uint64
+	var items []int64
 	for rows.Next() {
-		var id uint64
+		var id int64
 		if err := rows.Scan(&id); err != nil {
 			return nil, err
 		}
@@ -234,23 +233,22 @@ func (q *Queries) SelectRandomCards(ctx context.Context, limit int32) ([]uint64,
 	return items, nil
 }
 
-const startQuiz = `-- name: StartQuiz :execlastid
-INSERT INTO quizzes(user_id) VALUES (?)
+const startQuiz = `-- name: StartQuiz :one
+INSERT INTO quizzes(user_id) VALUES ($1) RETURNING id
 `
 
-func (q *Queries) StartQuiz(ctx context.Context, userID uint64) (int64, error) {
-	result, err := q.db.ExecContext(ctx, startQuiz, userID)
-	if err != nil {
-		return 0, err
-	}
-	return result.LastInsertId()
+func (q *Queries) StartQuiz(ctx context.Context, userID int64) (int64, error) {
+	row := q.db.QueryRowContext(ctx, startQuiz, userID)
+	var id int64
+	err := row.Scan(&id)
+	return id, err
 }
 
 const updateScore = `-- name: UpdateScore :exec
-UPDATE quizzes SET score = score + 1 WHERE id = ?
+UPDATE quizzes SET score = score + 1 WHERE id = $1
 `
 
-func (q *Queries) UpdateScore(ctx context.Context, id uint64) error {
+func (q *Queries) UpdateScore(ctx context.Context, id int64) error {
 	_, err := q.db.ExecContext(ctx, updateScore, id)
 	return err
 }

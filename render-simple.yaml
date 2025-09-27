@@ -1,0 +1,12 @@
+services:
+  # Go Backend Web Service using Docker
+  - type: web
+    name: quizapp-api
+    runtime: docker
+    plan: free
+    region: oregon
+    rootDir: ./api
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: PORT
+        value: 10000

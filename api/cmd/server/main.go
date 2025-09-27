@@ -11,102 +11,59 @@ import (
 
 	db "github.com/ChannMyaeAung/QuizApp/internal/db"
 	httphandlers "github.com/ChannMyaeAung/QuizApp/internal/http"
-	_ "github.com/go-sql-driver/mysql"
+	"github.com/ChannMyaeAung/QuizApp/internal/migration"
 	"github.com/gorilla/mux"
+	"github.com/joho/godotenv"
+	_ "github.com/lib/pq"
 )
 
-func runMigrations(database *sql.DB) error {
-    migrationSQL := `
-    CREATE TABLE IF NOT EXISTS users (
-        id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-        email VARCHAR(255) NOT NULL UNIQUE,
-        password_hash VARBINARY(255) NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    ) ENGINE=InnoDB; 
-
-    CREATE TABLE IF NOT EXISTS cards(
-        id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-        question TEXT NOT NULL,
-        correct_answer VARCHAR(255) NOT NULL,
-        wrong_answers JSON NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    ) ENGINE=InnoDB; 
-
-    CREATE TABLE IF NOT EXISTS quizzes(
-        id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-        user_id BIGINT UNSIGNED NOT NULL,
-        started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        finished_at TIMESTAMP NULL,
-        score INT DEFAULT 0,
-        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE 
-    ) ENGINE=InnoDB;
-
-    CREATE TABLE IF NOT EXISTS quiz_questions(
-        id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-        quiz_id BIGINT UNSIGNED NOT NULL,
-        card_id BIGINT UNSIGNED NOT NULL,
-        position INT NOT NULL,
-        FOREIGN KEY (quiz_id) REFERENCES quizzes(id) ON DELETE CASCADE,
-        FOREIGN KEY (card_id) REFERENCES cards(id) ON DELETE RESTRICT,
-        UNIQUE KEY uq_quiz_card (quiz_id, position)
-    ) ENGINE=InnoDB;
-
-    CREATE TABLE IF NOT EXISTS quiz_answers(
-        id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-        quiz_id BIGINT UNSIGNED NOT NULL,
-        card_id BIGINT UNSIGNED NOT NULL,
-        answer_text VARCHAR(255) NOT NULL,
-        is_correct BOOLEAN NOT NULL,
-        answered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (quiz_id) REFERENCES quizzes(id) ON DELETE CASCADE,
-        FOREIGN KEY (card_id) REFERENCES cards(id) ON DELETE RESTRICT 
-    ) ENGINE=InnoDB;
-
-    INSERT IGNORE INTO users (email, password_hash) VALUES ('test@example.com', 'dummy');
-
-    INSERT IGNORE INTO cards (question, correct_answer, wrong_answers) VALUES 
-    ('What is 2+2?', '4', '["3", "5", "6"]'),
-    ('Capital of France?', 'Paris', '["London", "Berlin", "Madrid"]'),
-    ('How many continents are there?', '7', '["5", "6", "8"]'),
-    ('What is the largest planet?', 'Jupiter', '["Saturn", "Earth", "Mars"]'),
-    ('Who painted the Mona Lisa?', 'Leonardo da Vinci', '["Michelangelo", "Pablo Picasso", "Vincent van Gogh"]');
-    `
-
-    _, err := database.Exec(migrationSQL)
-    return err
-}
-
 func main(){
-    // Build connection string from Railway environment variables
-    host := os.Getenv("MYSQLHOST")
-    port := os.Getenv("MYSQLPORT")
-    user := os.Getenv("MYSQLUSER")
-    pass := os.Getenv("MYSQLPASSWORD")
-    name := os.Getenv("MYSQLDATABASE")
-    
-    // Check if all MySQL variables are present
-    if host == "" || port == "" || user == "" || pass == "" || name == "" {
-        log.Printf("MySQL environment variables:")
-        log.Printf("MYSQLHOST: %s", host)
-        log.Printf("MYSQLPORT: %s", port)
-        log.Printf("MYSQLUSER: %s", user)
-        log.Printf("MYSQLPASSWORD: %s", func() string {
-            if pass == "" {
-                return "(empty)"
-            }
-            return "(set)"
-        }())
-        log.Printf("MYSQLDATABASE: %s", name)
-        log.Fatal("Missing required MySQL environment variables. Need: MYSQLHOST, MYSQLPORT, MYSQLUSER, MYSQLPASSWORD, MYSQLDATABASE")
+    // Load .env file from project root (1 level up from api directory)
+    err := godotenv.Load("../../../.env")
+    if err != nil{
+        log.Printf("Warning: Could not load .env file: %v", err)
+        log.Println("Continuing with existing environment variables...")
     }
     
-    // Build DSN
-    dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true&multiStatements=true&charset=utf8mb4",
-        user, pass, host, port, name)
+    // Check for DATABASE_URL first (Render's preferred method)
+    databaseURL := os.Getenv("DATABASE_URL")
     
-    log.Printf("Connecting to database at %s:%s", host, port)
+    var dsn string
+    if databaseURL != "" {
+        dsn = databaseURL
+        log.Printf("Using DATABASE_URL connection")
+    } else {
+        // Fallback to individual PostgreSQL environment variables
+        host := os.Getenv("PGHOST")
+        port := os.Getenv("PGPORT")
+        user := os.Getenv("PGUSER")
+        pass := os.Getenv("PGPASSWORD")
+        name := os.Getenv("PGDATABASE")
+        
+        // Check if all PostgreSQL variables are present
+        if host == "" || port == "" || user == "" || pass == "" || name == "" {
+            log.Printf("PostgreSQL environment variables:")
+            log.Printf("PGHOST: %s", host)
+            log.Printf("PGPORT: %s", port)
+            log.Printf("PGUSER: %s", user)
+            log.Printf("PGPASSWORD: %s", func() string {
+                if pass == "" {
+                    return "(empty)"
+                }
+                return "(set)"
+            }())
+            log.Printf("PGDATABASE: %s", name)
+            log.Fatal("Missing required PostgreSQL environment variables. Need: DATABASE_URL or (PGHOST, PGPORT, PGUSER, PGPASSWORD, PGDATABASE)")
+        }
+        
+        // Build PostgreSQL DSN
+        dsn = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=require",
+            host, port, user, pass, name)
+        
+        log.Printf("Connecting to database at %s:%s", host, port)
+    }
     
-    database, err := sql.Open("mysql", dsn)
+    database, err := sql.Open("postgres", dsn)
     if err != nil {
         log.Fatalf("Error opening database: %v", err)
     }
@@ -132,9 +89,9 @@ func main(){
 
     log.Println("Database connected successfully")
 
-    // Run migrations
+    // Run migrations using the migration package
     log.Println("Running database migrations...")
-    if err := runMigrations(database); err != nil {
+    if err := migration.RunMigrations(database); err != nil {
         log.Fatalf("Failed to run migrations: %v", err)
     }
     log.Println("Database migrations completed successfully")
@@ -146,7 +103,7 @@ func main(){
     r := mux.NewRouter()
     httphandlers.RegisterRoutes(r, queries)
 
-    port = os.Getenv("PORT")
+    port := os.Getenv("PORT")
     if port == ""{
         port = "8080"
     }

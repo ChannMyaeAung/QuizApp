@@ -75,7 +75,7 @@ func login(q *db.Queries) http.HandlerFunc{
         }
 
         // TODO: verify password hash here 
-        token, err := auth.Generate(user.ID)
+        token, err := auth.Generate(uint64(user.ID))
         if err != nil {
             http.Error(w, err.Error(), 500)
             return 
@@ -164,7 +164,7 @@ func startQuiz(q *db.Queries) http.HandlerFunc{
         }
 
         // Start the quiz
-        quizID, err := q.StartQuiz(r.Context(), uint64(si.UserID))
+        quizID, err := q.StartQuiz(r.Context(), int64(si.UserID))
         if err != nil {
             http.Error(w, err.Error(), 500)
             return 
@@ -180,7 +180,7 @@ func startQuiz(q *db.Queries) http.HandlerFunc{
         // Add quiz questions
         for i, cardID := range cardIDs {
             err = q.AddQuizQuestion(r.Context(), db.AddQuizQuestionParams{
-                QuizID:   uint64(quizID),
+                QuizID:   int64(quizID),
                 CardID:   cardID,
                 Position: int32(i + 1),
             })
@@ -204,7 +204,7 @@ func deleteCard(q *db.Queries) http.HandlerFunc{
             return 
         }
 
-        err = q.DeleteCard(r.Context(), uint64(cardID))
+        err = q.DeleteCard(r.Context(), int64(cardID))
         if err != nil {
             http.Error(w, err.Error(), http.StatusInternalServerError)
             return 
@@ -238,7 +238,7 @@ func submitAnswer(q *db.Queries) http.HandlerFunc{
 		}
 
 		// fetch correct answer 
-		ca, err := q.GetCorrectAnswer(r.Context(), uint64(ai.CardID))
+		ca, err := q.GetCorrectAnswer(r.Context(), int64(ai.CardID))
 		if err != nil {
 			http.Error(w, err.Error(), 500)
 			return 
@@ -248,8 +248,8 @@ func submitAnswer(q *db.Queries) http.HandlerFunc{
 
 		// Record the answer
         err = q.RecordAnswer(r.Context(), db.RecordAnswerParams{
-            QuizID: uint64(quizID),
-            CardID: uint64(ai.CardID),
+            QuizID: int64(quizID),
+            CardID: int64(ai.CardID),
             AnswerText: ai.AnswerText,
             IsCorrect: isCorrect,
         })
@@ -260,7 +260,7 @@ func submitAnswer(q *db.Queries) http.HandlerFunc{
 
 		// Update score if correct 
 		if isCorrect{
-			err = q.UpdateScore(r.Context(), uint64(quizID))
+			err = q.UpdateScore(r.Context(), int64(quizID))
 			if err != nil {
 				http.Error(w, err.Error(), 500)
 				return
@@ -286,20 +286,20 @@ func getQuiz(q *db.Queries) http.HandlerFunc{
 			return 
 		}
 
-		qz, err := q.GetQuiz(r.Context(), uint64(quizID))
+		qz, err := q.GetQuiz(r.Context(), int64(quizID))
 		if err != nil{
 			http.Error(w, "quiz not found", 404)
 			return 
 		}
 
-		questions, err := q.ListQuizQuestions(r.Context(), uint64(quizID))
+		questions, err := q.ListQuizQuestions(r.Context(), int64(quizID))
 		if err != nil {
             http.Error(w, err.Error(), 500)
             return 
         }
 
         resp := out{
-            UserID: qz.UserID,
+            UserID: uint64(qz.UserID),
             Score: func() int32 {
                 if qz.Score.Valid {
                     return qz.Score.Int32
