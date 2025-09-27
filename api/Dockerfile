@@ -8,8 +8,8 @@ WORKDIR /app
 # Copy everything
 COPY . .
 
-# Download dependencies and build
-RUN go mod download && go mod verify
+# Tidy and download dependencies
+RUN go mod tidy
 RUN go build -o server ./cmd/server
 
 # --------------------------------------------------------------------------------
