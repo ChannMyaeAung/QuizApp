@@ -5,8 +5,8 @@ services:
     runtime: docker
     plan: free
     region: oregon
-    rootDir: ./api
-    dockerfilePath: ./Dockerfile
+    dockerfilePath: ./api/Dockerfile
+    dockerContext: ./api
     envVars:
       - key: PORT
         value: 10000
