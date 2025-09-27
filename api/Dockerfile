@@ -16,6 +16,7 @@ RUN go build -o server ./cmd/server
 # --------------------------------------------------------------------------------
 # (Optional) If we want a slimmer runtime, do a second stage:
 FROM alpine:latest
+RUN apk --no-cache add ca-certificates
 WORKDIR /app
 COPY --from=builder /app/server ./
 EXPOSE 8080
